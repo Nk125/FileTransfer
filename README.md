@@ -10,7 +10,7 @@ And that's the reason why i created this, direct file transfer without any limit
 
 It's simple, you can compile all the source with cmake and a C++ compiler like MSVC or clang/g++
 
-#### Tutorial for s###### like me, that i needed a tutorial to do this
+### Tutorial for i##### like me, that i needed a tutorial to do this
 
 This is an example, i hope you're not so f###### i#### to put "YourBeatifulPC" as a real path
 
@@ -25,5 +25,13 @@ Also you can set the generator and thingies like that but who cares in that, jus
 
 ## Dependencies
 
-NO OTHER DEPENDENCIES TO EMBED OMG, only a super tiny arg parser bc i'm too lazy to do a complete arg parser with exceptions and thingies that don't need the full of my attention
+NO OTHER DEPENDENCIES TO EMBED/COMPILE/DOWNLOAD/LINK OMG
+
+This uses only a [super tiny arg parser](https://github.com/adishavit/argh) bc i'm too lazy to do a complete arg parser with exceptions and thingies that don't need the full of my attention
+
+### Credits
+
+ONLY ME HAHAHA! ofc not, i give thanks to all the documentation n##### and other big f###### genius devs that made me as the s##### dev i'm now and even if they aren't here developing with me they're the base of what i'm, so thanks for everyone who supported me in this travel to be a dev
+
+And obviously to [Adi Shavit](https://github.com/adishavit) for his arg parser
 

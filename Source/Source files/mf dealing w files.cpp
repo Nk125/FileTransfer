@@ -1,3 +1,4 @@
+#pragma once
 #include <FileMF.hpp>
 
 FileOperator::Arr FileOperator::readChunk(std::ifstream inFile, size_t bRead, size_t offset) {
