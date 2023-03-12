@@ -1,4 +1,3 @@
-#pragma once
 #include <FileMF.hpp>
 
 void FileOperator::readChunk(FileOperator::Portal& File, FileOperator::Arr& arr, size_t bRead, size_t offset) {

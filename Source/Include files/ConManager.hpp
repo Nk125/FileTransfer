@@ -12,8 +12,11 @@
 #define WR_FUNC send
 #define RD_FUNC recv
 #else
-#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <unistd.h>
 #define SOPT_CAST int*
 #define SOCKET int
 #define INVALID_SOCKET -1
