@@ -26,6 +26,6 @@ public:
 	}
 
 	Except(bool fatal = false) {
-		diplay(fatal);
+		display(fatal);
 	}
 };

@@ -1,39 +1,56 @@
 #pragma once
 #include <FileMF.hpp>
 
-FileOperator::Arr FileOperator::readChunk(std::ifstream inFile, size_t bRead, size_t offset) {
-	if (inFile.is_open()) {
-		FileOperator::Arr bytes(bRead);
-		inFile.seekg(offset);
-		inFile.read(bytes.data(), bRead);
-
-		return bytes;
+void FileOperator::readChunk(FileOperator::Portal& File, FileOperator::Arr& arr, size_t bRead, size_t offset) {
+	arr.assign(bRead, 0x00);
+	
+	if (File.is_open()) {
+		File.seekg(offset);
+		File.read(&arr[0], bRead);
 	}
-
-	return FileOperator::Arr{};
 }
 
-void FileOperator::writeChunk(std::ofstream outFile, FileOperator::Arr bytes) {
-	if (outFile.is_open()) {
-		outFile.write(bytes.data(), bytes.size());
+void FileOperator::writeChunk(FileOperator::Portal& File, const Arr& bytes, size_t size) {
+	if (File.is_open()) {
+		File.write(bytes.data(), size);
 	}
-
-	return;
 }
 
-FileOperator::Directory FileOperator::makeFileList(std::filesystem::path dPath) {
-	FileOperator::Directory dir = {};
+FileOperator::Directory FileOperator::makeFileList(std::filesystem::path dPath, std::regex exc, std::regex inc, size_t min, size_t max) {
+	FileOperator::Directory dir;
 
-	for (const std::filesystem::directory_entry& P : std::filesystem::recursive_directory_iterator(dPath)) {
-		if (!P.is_directory()) {
-			dir.push_back(P.path());
+	if (std::filesystem::is_directory(dPath)) {
+		try {
+			for (const std::filesystem::directory_entry& P : std::filesystem::recursive_directory_iterator(dPath)) {
+				if (!P.is_directory()) {
+					std::string relPath = P.path().relative_path().string();
+					size_t fileSz = P.file_size();
+
+					if (std::regex_match(relPath, exc)) continue;
+					if (!std::regex_match(relPath, inc)) continue;
+					if (fileSz < min) continue;
+					if (fileSz > max) continue;
+					
+					dir[relPath] = fileSz;
+				}
+			}
+		}
+		catch (...) {
+			Except("Invalid directory path", true);
+		}
+	}
+	else {
+		try {
+			dir[dPath.relative_path()] = std::filesystem::file_size(dPath);
+		}
+		catch (...) {
+			Except("Invalid file path", true);
 		}
 	}
 
 	return dir;
 }
 
-template<typename T>
-T FileOperator::init(const char* fName) {
-	return T(fName, std::ios::binary);
+FileOperator::Portal FileOperator::init(bool type, const char* fName) {
+	return FileOperator::Portal(fName, std::ios::binary | (type ? std::ios::out : std::ios::in));
 }

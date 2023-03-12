@@ -1,20 +1,24 @@
 #pragma once
+#include <ErrorMF.hpp>
 #include <filesystem>
 #include <fstream>
+#include <map>
+#include <regex>
 #include <vector>
 
 class FileOperator {
 public:
 	typedef std::vector<char> Arr;
-	typedef std::vector<std::filesystem::path> Directory;
-	typedef std::ofstream out;
-	typedef std::ifstream in;
+	// File path : File size
+	typedef std::map<std::filesystem::path, size_t> Directory;
+	typedef std::fstream Portal;
+	const static bool Out = true;
+	const static bool In = false;
 
-	Arr readChunk(std::ifstream, size_t, size_t);
-	void writeChunk(std::ofstream, Arr);
+	static void readChunk(Portal&, Arr&, size_t, size_t);
+	static void writeChunk(Portal&, const Arr&, size_t);
 
-	Directory makeFileList(std::filesystem::path);
+	static Directory makeFileList(std::filesystem::path, std::regex, std::regex, size_t, size_t);
 
-	template <typename T>
-	T init(const char*);
+	static Portal init(bool, const char*);
 };
