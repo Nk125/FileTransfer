@@ -15,8 +15,8 @@ public:
 	const static bool Out = true;
 	const static bool In = false;
 
-	static void readChunk(Portal&, Arr&, size_t, size_t);
-	static void writeChunk(Portal&, const Arr&, size_t);
+	static bool readChunk(Portal&, Arr&, size_t, size_t);
+	static bool writeChunk(Portal&, const Arr&, size_t);
 
 	static Directory makeFileList(std::filesystem::path, std::regex, std::regex, size_t, size_t);
 

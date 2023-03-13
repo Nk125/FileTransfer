@@ -1,4 +1,4 @@
-# Transfer your files over TCP fastest as possible!
+﻿# Transfer your files over TCP fastest as possible!
 
 You ever wanted to rapidly transfer your files without uploading and doing all that s### required to download and doing bla bla?
 
@@ -33,5 +33,6 @@ This uses only a [super tiny arg parser](https://github.com/adishavit/argh) bc i
 
 ONLY ME HAHAHA! ofc not, i give thanks to all the documentation n##### and other big f###### genius devs that made me as the s##### dev i'm now and even if they aren't here developing with me they're the base of what i'm, so thanks for everyone who supported me in this travel to be a dev
 
-And obviously to [Adi Shavit](https://github.com/adishavit) for his arg parser
+And obviously to this fella for his work:  
+* [Adi Shavit](https://github.com/adishavit) - for his arg parser  
 

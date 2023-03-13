@@ -4,8 +4,9 @@
 #include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-// The unsafest cast seen in all over the world
+// The most s####y cast seen in all over the world
 // Source: https://learn.microsoft.com/en-us/windows/win32/api/winsock/nf-winsock-setsockopt
+// So kids, that's how to do a mega unsafe cast only to complain with a super old socket convention
 #define SOPT_CAST char*
 #define SO_REUSEPORT 0
 #define IOCN ioctlsocket
@@ -25,6 +26,7 @@
 #define WR_FUNC write
 #define RD_FUNC read
 #endif
+#include <chrono>
 #include <ErrorMF.hpp>
 #include <FileMF.hpp>
 #include <vector>
@@ -42,11 +44,13 @@ private:
 	bool blockwt(SOCKET, const Arr&);
 	bool blockrd(SOCKET, Arr&);
 	bool wt(SOCKET, const Arr&, size_t);
-	bool rd(SOCKET, Arr&, size_t);
+	int rd(SOCKET, Arr&, size_t);
 	void serverHandle(SOCKET, const FileOperator::Directory&);
 	void clientHandle(SOCKET, std::filesystem::path);
 
 public:
+	bool showProgress = false, showSpeed = false;
+
 	ConnectionMF();
 	~ConnectionMF();
 

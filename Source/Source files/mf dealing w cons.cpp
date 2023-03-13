@@ -33,13 +33,21 @@ void ConnectionMF::saveMem(Arr& a) {
 bool ConnectionMF::blockwt(SOCKET remSock, const Arr& buf) {
 	Arr confirm(1, 0x00);
 
-	if (!rd(remSock, confirm, 1)) {
+	if (rd(remSock, confirm, 1) < 0) {
 		Except("Network error while reading confirm packet", (!reListen && true));
 		return false;
 	}
 
 	if (!wt(remSock, buf, buf.size())) {
 		Except("Network send data buffer error", (!reListen && true));
+		return false;
+	}
+
+	// In this space the blockrd function receives all data sent and then sends again the confirm packet
+	// What a beautiful thing
+
+	if (rd(remSock, confirm, 1) < 0) {
+		Except("Network error while reading confirm packet", (!reListen && true));
 		return false;
 	}
 
@@ -58,7 +66,7 @@ bool ConnectionMF::blockrd(SOCKET remSock, Arr& buf) {
 	size_t bufSz = buf.size(), loop = 1;
 
 	do {
-		if (!rd(remSock, buf, bufSz)) {
+		if (rd(remSock, buf, bufSz) < 0) {
 			Except("Network read data buffer error", true);
 			return false;
 		}
@@ -67,6 +75,11 @@ bool ConnectionMF::blockrd(SOCKET remSock, Arr& buf) {
 			IOCN(remSock, FIONREAD, &eofFlag);
 		}
 	} while (eofFlag > 0);
+
+	if (!wt(remSock, confirm, 1)) {
+		Except("Network error while sending confirm packet", true);
+		return false;
+	}
 
 	saveMem(buf);
 	return true;
@@ -79,19 +92,19 @@ bool ConnectionMF::wt(SOCKET remSock, const Arr& buf, size_t prBufSz) {
 #endif
 	) > 0);
 
-	/*std::cout << "PKG OUT (bufsz: " << prBufSz << "): ";
+	/*std::cout << "PKG OUT (bufsz: " << prBufSz << "): [";
 	std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(std::cout, ""));
-	std::cout << "\n";*/
+	std::cout << "]\n";*/
 
 	return r;
 }
 
-bool ConnectionMF::rd(SOCKET remSock, Arr& buf, size_t prBufSz) {
-	bool r = (RD_FUNC(remSock, &buf[0], static_cast<int>(prBufSz)
+int ConnectionMF::rd(SOCKET remSock, Arr& buf, size_t prBufSz) {
+	int r = (RD_FUNC(remSock, &buf[0], static_cast<int>(prBufSz)
 #if WINDOWS_SYSTEM
 		, 0
 #endif
-	) > 0);
+	));
 
 	/*std::cout << "PKG IN (bufsz: " << prBufSz << "): [";
 	std::copy(buf.begin(), buf.end(), std::ostream_iterator<char>(std::cout, ""));
@@ -102,7 +115,8 @@ bool ConnectionMF::rd(SOCKET remSock, Arr& buf, size_t prBufSz) {
 
 void ConnectionMF::serverHandle(SOCKET cliSocket, const FileOperator::Directory& files) {
 	Arr gBuf(packetSize, 0x00);
-	size_t allfs = files.size(), pkgSz = packetSize - 2;;
+	size_t allfs = files.size(), pkgSz = packetSize, tf = 0;
+	std::chrono::high_resolution_clock::time_point str, stp;
 
 	{
 		std::string fs = std::to_string(allfs);
@@ -113,35 +127,51 @@ void ConnectionMF::serverHandle(SOCKET cliSocket, const FileOperator::Directory&
 		}
 	}
 
-	for (auto& p : files) {
-		//int tf = 0;
+	std::cout << "Transfering files\n";
 
-		std::string snd = p.first.string() + ":" + std::to_string(p.second);
+	for (auto& p : files) {
+		std::string snd = p.first.filename().string() + ":" + std::to_string(p.second);
 
 		gBuf.assign(snd.begin(), snd.end());
-
-		saveMem(gBuf);
 
 		if (!blockwt(cliSocket, gBuf)) {
 			Except("Failed to send file pair", (!reListen && true));
 			return;
 		}
 
-		FileOperator::Portal fileRead = FileOperator::init(FileOperator::In, std::filesystem::absolute(p.first).string().c_str());
+		FileOperator::Portal fileRead = FileOperator::init(FileOperator::In, p.first.string().c_str());
 
-		for (size_t i = 0; i <= p.second; i += pkgSz) {
+		size_t read = 0;
+
+		for (size_t i = 0; i < p.second; i += read) {
+			if (showSpeed) {
+				str = std::chrono::high_resolution_clock::now();
+			}
+
 			FileOperator::readChunk(fileRead, gBuf, pkgSz, i);
+			read = gBuf.size();
 
-			if (!blockwt(cliSocket, gBuf)) {
+			if (!wt(cliSocket, gBuf, read)) {
 				Except("Failed to send file chunk", (!reListen && true));
-				return;
+				break;
+			}
+
+			if (showSpeed) {
+				stp = std::chrono::high_resolution_clock::now();
+				auto tmtk = std::chrono::duration_cast<std::chrono::microseconds>(stp - str).count();
+
+				std::cout << "\rUpload Speed: " << (float(float(pkgSz) / float(float(tmtk ? tmtk : 1) * 1e-6)) / 1024) << " KB/s   ";
 			}
 		}
 
 		fileRead.close();
-
-		//std::cout << "\rFiles sent: " << ++tf << " Left: " << allfs - tf << " " << (100 * tf / allfs) << "% completed";
+		
+		if (showProgress && !showSpeed) {
+			std::cout << "\rFiles sent: " << ++tf << " Left: " << allfs - tf << " (" << (100 * tf / allfs) << "%)";
+		}
 	}
+
+	std::cout << "\n";
 
 	std::cout << "Finished TCP Connection\n";
 
@@ -151,6 +181,7 @@ void ConnectionMF::serverHandle(SOCKET cliSocket, const FileOperator::Directory&
 void ConnectionMF::clientHandle(SOCKET srvSocket, std::filesystem::path wp) {
 	Arr gBuf(packetSize, 0x00);
 	FileOperator::Directory files;
+	std::chrono::high_resolution_clock::time_point str, stp;
 
 	if (wp.string() == ".") wp = std::filesystem::current_path();
 
@@ -160,9 +191,10 @@ void ConnectionMF::clientHandle(SOCKET srvSocket, std::filesystem::path wp) {
 		Except("Failed to receive file count", true);
 	}
 
-	size_t fs = std::stoull(std::string(gBuf.begin(), gBuf.end())), pkgSz = packetSize - 2;
+	size_t fs = std::stoull(std::string(gBuf.begin(), gBuf.end())), pkgSz = packetSize;
 
 	for (size_t i = 0; i < fs; i++) {
+		
 		gBuf.assign(packetSize, 0x00);
 
 		if (!blockrd(srvSocket, gBuf)) {
@@ -173,32 +205,63 @@ void ConnectionMF::clientHandle(SOCKET srvSocket, std::filesystem::path wp) {
 
 		if ((ind = std::find(gBuf.begin(), gBuf.end(), ':')) != gBuf.end()) {
 			std::filesystem::path fname(std::string(gBuf.begin(), ind));
+			fname = fname.filename();
 
-			std::cout << "Writing file: " << fname << "\n";
-
-			FileOperator::Portal fileWrite = FileOperator::init(FileOperator::Out, (std::filesystem::relative(wp).string()).c_str());
+			FileOperator::Portal fileWrite = FileOperator::init(FileOperator::Out, (std::filesystem::absolute(wp.string() + "/" + fname.string()).string()).c_str());
 			
-			size_t filesz = std::stoull(std::string(ind + 1, gBuf.end())), recvd = 0;
+			size_t filesz = std::stoull(std::string(ind + 1, gBuf.end()));
 
-			while (recvd < filesz) {
+			if (!showProgress && !showSpeed) std::cout << "Writing file: " << fname.string() << "\n";
+
+			for (size_t recvd = 0; recvd < filesz;) {
+				bool lastPacket = filesz - pkgSz < recvd;
+
+				if (showSpeed) {
+					str = std::chrono::high_resolution_clock::now();
+				}
+
 				gBuf.assign(pkgSz, 0x00);
+				int rec = 0;
 
-				if (!blockrd(srvSocket, gBuf)) {
+				if ((rec = rd(srvSocket, gBuf, pkgSz)) < 0) {
 					Except("Failed to receive file chunk", true);
 				}
 
-				FileOperator::writeChunk(fileWrite, gBuf, gBuf.size());
+				size_t rsz = static_cast<size_t>(rec);
 
-				recvd += pkgSz;
-				//std::cout << "\r" << fname.string() << " progress: " << recvd << "/" << filesz << " (" << (100 * recvd / filesz) << "%)";
-			}
+				/*if (lastPacket) {
+					std::cout << "LAST PACKET (bufsz: " << rsz << "): [";
+					std::copy(gBuf.begin(), gBuf.end(), std::ostream_iterator<char>(std::cout, ""));
+					std::cout << "]\n";
+				}*/
+
+				FileOperator::writeChunk(fileWrite, gBuf, rsz);
+
+				recvd += rsz;
+
+				if (showSpeed && (recvd % (pkgSz * 1024) == 0 || lastPacket)) {
+					stp = std::chrono::high_resolution_clock::now();
+					auto tmtk = std::chrono::duration_cast<std::chrono::microseconds>(stp - str).count();
+
+					std::cout << "\rDownload Speed: " << (float(float(pkgSz) / float(float(tmtk ? tmtk : 1) * 1e-6)) / 1024) << " KB/s   ";
+				}
+
+				if (showProgress && !showSpeed) {
+					size_t shRecvd = recvd;
+					if (shRecvd > filesz) shRecvd -= (recvd - filesz);
+
+					std::cout << "\r" << fname.string() << " progress: " << shRecvd << "/" << filesz << " (" << (100 * shRecvd / filesz) << "%)";
+				}
+			};
+
+			if (showProgress && !showSpeed) std::cout << "\n";
 
 			fileWrite.close();
 		}
 		else Except("A file pair couldn't be found", false);
 	}
 
-	std::cout << "Finished TCP Connection\n";
+	std::cout << "\nFinished TCP Connection\n";
 
 	if (shutdown(srvSocket, SD_BOTH) != 0) Except("Failed to shutdown socket");
 }
@@ -234,6 +297,8 @@ void ConnectionMF::setupServer(unsigned short port, const FileOperator::Director
 
 	int opt = 1; // Set to true the options
 
+	// Here's used that s####y cast, just ignore the fact that microsoft wanted to be different
+	// And instead of using int, uses char ptr
 	if (setsockopt(socketId, SOL_SOCKET, SO_REUSEADDR | SO_REUSEPORT, (SOPT_CAST) &opt, sizeof(opt))) {
 		Except("Socket reuse option didn't set successfully, may expect a connection error ");
 	}
@@ -243,7 +308,7 @@ void ConnectionMF::setupServer(unsigned short port, const FileOperator::Director
 	memset(&srv, 0x00, sizeof(srv));
 
 	srv.sin_family = AF_INET;
-	srv.sin_addr.s_addr = INADDR_ANY; // Should work with localhost
+	srv.sin_addr.s_addr = INADDR_ANY; // Should work with localhost connections (Proved)
 	srv.sin_port = htons(port);
 
 	if (bind(socketId, (struct sockaddr*) &srv, sizeof(srv)) < 0) Except("Server bind failed", true);

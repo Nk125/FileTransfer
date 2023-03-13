@@ -7,6 +7,7 @@
 
 int main(int argc, char* argv[]) {
 	unsigned short port = 0;
+	bool showprog = false, showspd = false;
 	ConnectionMF myniggconn;
 	argh::parser argmf(argc, argv, argh::parser::PREFER_PARAM_FOR_UNREG_OPTION);
 
@@ -14,6 +15,8 @@ int main(int argc, char* argv[]) {
 		std::cout << (R"""(
 Usage:
 	--help - This help
+	-sp/--show-progress - Shows progressive output of the data transfer
+	-ss/--show-speed - Shows internet upload/download speed	
 
 	For server mode:
 		-l/--listen <port> - This activates the server mode and sets the port
@@ -33,6 +36,11 @@ Usage:
 		return 0;
 	}
 
+	showprog = argmf[{"-sp", "--show-progress"}];
+	myniggconn.showProgress = showprog;
+	showspd = argmf[{"-ss", "--show-speed"}];
+	myniggconn.showSpeed = showspd;
+
 	if ((argmf({ "-l", "--listen" }) >> port)) {
 		std::string tp, exstr, instr;
 		bool sf = false, rl = false;
@@ -41,6 +49,7 @@ Usage:
 		if ((tp = argmf({ "-tp", "--transmit-path" }).str()).empty()) {
 			Except("No transmit path set", true);
 		}
+
 		argmf({ "-ex", "--exclude" }, "") >> exstr;
 		argmf({ "-in", "--include" }, ".*") >> instr;
 		argmf({ "-fsmn", "--filesize-min" }, 0) >> min;
@@ -67,7 +76,9 @@ Usage:
 
 		if (!(argmf({ "-h", "--host" }) >> host)) Except("You need to provide a host", true);
 		if (!(argmf({ "-rp", "--remote-port" }) >> port)) Except("Remote port isn't set", true);
-		argmf({ "-wp", "--write-path" }, ".") >> wp;
+		if ((wp = argmf({ "-wp", "--write-path" }, ".").str()).empty()) {
+			Except("No write path set", true);
+		}
 
 		std::cout << "Setup client started\n";
 
