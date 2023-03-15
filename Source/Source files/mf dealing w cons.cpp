@@ -62,7 +62,7 @@ bool ConnectionMF::blockrd(SOCKET remSock, Arr& buf) {
 		return false;
 	}
 
-	unsigned long eofFlag = -1;
+	unsigned long eofFlag = 0;
 	size_t bufSz = buf.size(), loop = 1;
 
 	do {
