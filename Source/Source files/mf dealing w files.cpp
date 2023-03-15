@@ -36,6 +36,8 @@ FileOperator::Directory FileOperator::makeFileList(std::filesystem::path dPath, 
 
 	if (std::filesystem::is_directory(dPath)) {
 		try {
+			std::filesystem::current_path(dPath);
+
 			for (const std::filesystem::directory_entry& P : std::filesystem::recursive_directory_iterator(dPath)) {
 				if (!P.is_directory()) {
 					std::string relPath = P.path().string();
@@ -51,11 +53,15 @@ FileOperator::Directory FileOperator::makeFileList(std::filesystem::path dPath, 
 			}
 		}
 		catch (...) {
-			Except("Invalid directory path", true);
+			Except("Invalid directory path", false);
 		}
 	}
 	else {
 		try {
+			if (dPath.has_parent_path()) {
+				std::filesystem::current_path(dPath.parent_path());
+			}
+
 			dir[dPath] = std::filesystem::file_size(dPath);
 		}
 		catch (...) {

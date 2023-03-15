@@ -130,7 +130,7 @@ void ConnectionMF::serverHandle(SOCKET cliSocket, const FileOperator::Directory&
 	std::cout << "Transfering files\n";
 
 	for (auto& p : files) {
-		std::string snd = p.first.filename().string() + ":" + std::to_string(p.second);
+		std::string snd = std::filesystem::relative(p.first).string() + ":" + std::to_string(p.second);
 
 		gBuf.assign(snd.begin(), snd.end());
 
@@ -205,7 +205,6 @@ void ConnectionMF::clientHandle(SOCKET srvSocket, std::filesystem::path wp) {
 
 		if ((ind = std::find(gBuf.begin(), gBuf.end(), ':')) != gBuf.end()) {
 			std::filesystem::path fname(std::string(gBuf.begin(), ind));
-			fname = fname.filename();
 
 			FileOperator::Portal fileWrite = FileOperator::init(FileOperator::Out, (std::filesystem::absolute(wp.string() + "/" + fname.string()).string()).c_str());
 			
