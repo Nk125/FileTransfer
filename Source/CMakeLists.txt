@@ -16,4 +16,6 @@ target_sources (MyMFFileTransfer PUBLIC "Source files/mf dealing w cons.cpp" "So
 
 target_include_directories (MyMFFileTransfer PUBLIC "Include files")
 
+target_include_directories (MyMFFileTransfer PUBLIC "External")
+
 set_property(TARGET MyMFFileTransfer PROPERTY CXX_STANDARD 17)
